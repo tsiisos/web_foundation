@@ -21,4 +21,13 @@ COPY . .
 EXPOSE 8000
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
-# The production stage is added in Phase 5.
+
+# ---------- production ----------
+FROM base AS prod
+RUN useradd --create-home --uid 1000 app \
+    && mkdir -p /app/staticfiles \
+    && chown -R app:app /app
+COPY --chown=app:app . .
+USER app
+EXPOSE 8000
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && exec gunicorn config.wsgi:application -c gunicorn.conf.py"]

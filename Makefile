@@ -48,3 +48,25 @@ fe-add:
 
 fe-lint:
 > $(COMPOSE_DEV) exec frontend pnpm lint
+
+COMPOSE_PROD = docker compose --env-file .env.prod -f docker/compose.prod.yml
+
+.PHONY: prod-up prod-down prod-logs prod-ps prod-superuser prod-psql
+
+prod-up:
+> $(COMPOSE_PROD) up -d --build
+
+prod-down:
+> $(COMPOSE_PROD) down
+
+prod-logs:
+> $(COMPOSE_PROD) logs -f
+
+prod-ps:
+> $(COMPOSE_PROD) ps
+
+prod-superuser:
+> $(COMPOSE_PROD) exec backend python manage.py createsuperuser
+
+prod-psql:
+> $(COMPOSE_PROD) exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
