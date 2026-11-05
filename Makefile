@@ -37,3 +37,14 @@ test:
 
 psql:
 > $(COMPOSE_DEV) exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
+
+.PHONY: fe-add fe-lint
+
+# Usage: make fe-add PKG=zod
+fe-add:
+> docker run --rm -u $$(id -u):$$(id -g) -e HOME=/tmp -v $(CURDIR)/frontend:/work -w /work node:22-slim sh -c "npm install -g pnpm@10 --prefix /tmp/npm >/dev/null && /tmp/npm/bin/pnpm add $(PKG)"
+> rm -rf frontend/node_modules
+> $(COMPOSE_DEV) up -d --build frontend
+
+fe-lint:
+> $(COMPOSE_DEV) exec frontend pnpm lint
