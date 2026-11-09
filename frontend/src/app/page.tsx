@@ -14,7 +14,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-3xl font-bold">NICE web_foundation bt me!</h1>
+      <h1 className="text-3xl font-bold">This is my web_foundation!</h1>
       <p>
         Backend status: <span className="font-mono">{status}</span>
       </p>
