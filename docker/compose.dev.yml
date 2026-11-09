@@ -41,6 +41,11 @@ services:
       - ../frontend/src:/app/src
       - ../frontend/public:/app/public
 
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+
   nginx:
     image: nginx:1.27-alpine
     ports:

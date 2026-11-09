@@ -70,3 +70,9 @@ prod-superuser:
 
 prod-psql:
 > $(COMPOSE_PROD) exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
+
+.PHONY: reset-db
+
+# DANGER: deletes the dev database
+reset-db:
+> $(COMPOSE_DEV) down -v
