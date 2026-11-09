@@ -19,6 +19,8 @@ main() {
   git fetch --prune origin main
   git reset --hard origin/main
   git log -1 --oneline
+  echo "==> Backing up database"
+  ./deploy/backup.sh || echo "WARNING: backup failed, continuing deploy"
 
   echo "==> Building and starting containers"
   $COMPOSE up -d --build --remove-orphans
