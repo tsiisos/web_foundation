@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim AS base
 
+# ffmpeg: video checks, preview images
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -20,7 +25,6 @@ FROM base AS dev
 COPY . .
 EXPOSE 8000
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-
 
 # ---------- production ----------
 FROM base AS prod

@@ -29,3 +29,6 @@ Thumbs.db
 .idea/
 .vscode/
 backend/media/
+frontend/public/video-test.html
+backend/sample.mp4
+backend/sample.jpg

@@ -76,3 +76,18 @@ prod-psql:
 # DANGER: deletes the dev database
 reset-db:
 > $(COMPOSE_DEV) down -v
+
+.PHONY: worker-logs worker-restart redis-cli prod-worker-logs
+
+worker-logs:
+> $(COMPOSE_DEV) logs -f worker
+
+# Needed after you change task code: the worker does not reload by itself
+worker-restart:
+> $(COMPOSE_DEV) restart worker
+
+redis-cli:
+> $(COMPOSE_DEV) exec redis redis-cli
+
+prod-worker-logs:
+> $(COMPOSE_PROD) logs -f worker

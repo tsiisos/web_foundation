@@ -3,9 +3,17 @@ from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.utils.text import get_valid_filename
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 
 from .models import MediaAsset
-from .processing import UploadRejected, is_pdf, process_image
+from .processing import UploadRejected, process_image, sniff_kind
+from .tasks import enqueue_video
+
+
+class ProcessingUnavailable(APIException):
+    status_code = 503
+    default_detail = "Video processing is temporarily unavailable. Please try again later."
+    default_code = "processing_unavailable"
 
 
 def _clean_name(name):
@@ -22,8 +30,8 @@ class MediaAssetSerializer(serializers.ModelSerializer):
     class Meta:
         model = MediaAsset
         fields = (
-            "id", "kind", "visibility", "original_name", "content_type",
-            "size", "width", "height", "url", "thumbnail_url", "created_at",
+            "id", "kind", "visibility", "status", "error", "original_name", "content_type",
+            "size", "width", "height", "duration", "url", "thumbnail_url", "created_at",
         )
         read_only_fields = fields
 
@@ -45,23 +53,27 @@ class MediaUploadSerializer(serializers.Serializer):
         visibility = validated_data["visibility"]
         owner = self.context["request"].user
 
-        if upload.size > settings.UPLOAD_MAX_BYTES:
-            limit_mb = settings.UPLOAD_MAX_BYTES // (1024 * 1024)
-            raise serializers.ValidationError({"file": f"The file is larger than {limit_mb} MB."})
+        kind = sniff_kind(upload)
+        limit = settings.VIDEO_MAX_BYTES if kind == MediaAsset.Kind.VIDEO else settings.UPLOAD_MAX_BYTES
+        if upload.size > limit:
+            raise serializers.ValidationError({"file": f"The file is larger than {limit // (1024 * 1024)} MB."})
 
-        asset = MediaAsset(owner=owner, visibility=visibility, original_name=_clean_name(upload.name))
-        thumbnail_bytes = None
+        asset = MediaAsset(owner=owner, visibility=visibility, kind=kind, original_name=_clean_name(upload.name))
+        name = asset.id.hex
+        data = extension = thumbnail_bytes = None
         try:
-            if is_pdf(upload):
+            if kind == MediaAsset.Kind.DOCUMENT:
                 if visibility == MediaAsset.Visibility.PUBLIC:
                     raise UploadRejected("Documents can only be uploaded as private files.")
-                asset.kind = MediaAsset.Kind.DOCUMENT
                 asset.content_type = "application/pdf"
                 asset.size = upload.size
                 data, extension = upload.read(), "pdf"
+            elif kind == MediaAsset.Kind.VIDEO:
+                asset.status = MediaAsset.Status.PROCESSING
+                asset.content_type = "video/mp4"
+                asset.size = upload.size
             else:
                 processed = process_image(upload)
-                asset.kind = MediaAsset.Kind.IMAGE
                 asset.content_type = processed.content_type
                 asset.size = len(processed.data)
                 asset.width, asset.height = processed.width, processed.height
@@ -69,10 +81,13 @@ class MediaUploadSerializer(serializers.Serializer):
         except UploadRejected as exc:
             raise serializers.ValidationError({"file": str(exc)})
 
-        name = asset.id.hex
-        asset.file.save(f"{name}.{extension}", ContentFile(data), save=False)
-        if thumbnail_bytes:
-            asset.thumbnail.save(f"{name}.webp", ContentFile(thumbnail_bytes), save=False)
+        if kind == MediaAsset.Kind.VIDEO:
+            # Raw upload goes to a folder nginx never serves, until the worker has checked it
+            asset.file = asset.file.storage.save(f"incoming/{name}.mp4", upload)
+        else:
+            asset.file.save(f"{name}.{extension}", ContentFile(data), save=False)
+            if thumbnail_bytes:
+                asset.thumbnail.save(f"{name}.webp", ContentFile(thumbnail_bytes), save=False)
         try:
             asset.save()
         except Exception:
@@ -80,4 +95,8 @@ class MediaUploadSerializer(serializers.Serializer):
                 if field:
                     field.storage.delete(field.name)
             raise
+
+        if kind == MediaAsset.Kind.VIDEO and not enqueue_video(asset):
+            asset.delete()  # also removes the raw upload
+            raise ProcessingUnavailable()
         return asset

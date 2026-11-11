@@ -54,7 +54,7 @@ class MediaServeView(APIView):
         asset = get_object_or_404(MediaAsset, pk=pk)
         field = asset.thumbnail if variant == "thumbnail" else asset.file
         # 404 (not 403) for everything not allowed: do not reveal that a private file exists
-        if not field or not self._allowed(request, asset, variant):
+        if asset.status != MediaAsset.Status.READY or not field or not self._allowed(request, asset, variant):
             raise Http404
 
         if asset.visibility == MediaAsset.Visibility.PUBLIC:

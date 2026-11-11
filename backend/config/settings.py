@@ -1,3 +1,4 @@
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -127,3 +128,28 @@ IMAGE_MAX_PIXELS = 40_000_000
 IMAGE_MAX_SIDE = 2560
 THUMBNAIL_SIDE = 400
 MEDIA_SIGNED_URL_SECONDS = config("MEDIA_SIGNED_URL_SECONDS", default=300, cast=int)
+
+# Video
+VIDEO_MAX_BYTES = 100 * 1024 * 1024
+MEDIA_SIGNED_VIDEO_URL_SECONDS = 3600
+
+# Redis, cache and Celery. Tests use an in-memory cache and run tasks immediately (no Redis needed).
+TESTING = sys.argv[1:2] == ["test"]
+REDIS_URL = config("REDIS_URL", default="redis://redis:6379")
+
+if TESTING:
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": f"{REDIS_URL}/1",
+        }
+    }
+
+CELERY_BROKER_URL = f"{REDIS_URL}/0"
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1

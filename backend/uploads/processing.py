@@ -92,3 +92,18 @@ def process_image(upload):
     except Exception:
         logger.warning("Could not process image upload", exc_info=True)
         raise UploadRejected("The image could not be processed.")
+
+
+# Brands of MP4 files we accept (read from the "ftyp" box at the start of the file)
+ALLOWED_BRANDS = {"isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1", "dash", "M4V ", "mmp4"}
+
+
+def sniff_kind(upload):
+    """Guess what an upload is from its first bytes: document, video or image."""
+    head = upload.read(12)
+    upload.seek(0)
+    if head.startswith(b"%PDF-"):
+        return "document"
+    if head[4:8] == b"ftyp" and head[8:12].decode("latin-1") in ALLOWED_BRANDS:
+        return "video"
+    return "image"

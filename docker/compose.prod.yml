@@ -16,6 +16,17 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: ../backend
@@ -28,12 +39,33 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2)"]
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  worker:
+    build:
+      context: ../backend
+      target: prod
+    restart: unless-stopped
+    env_file: ../.env.prod
+    command: celery -A config worker -l info --concurrency=1
+    volumes:
+      - media_prod:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Keeps a video job from starving the website on a small server, and lets a running job finish on deploy
+    cpus: 0.5
+    mem_limit: 512m
+    stop_grace_period: 2m
 
   frontend:
     build:

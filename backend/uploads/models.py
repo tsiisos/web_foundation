@@ -23,11 +23,17 @@ def thumbnail_path(instance, filename):
 class MediaAsset(models.Model):
     class Kind(models.TextChoices):
         IMAGE = "image", "Image"
+        VIDEO = "video", "Video"
         DOCUMENT = "document", "Document"
 
     class Visibility(models.TextChoices):
         PUBLIC = "public", "Public"
         PRIVATE = "private", "Private"
+
+    class Status(models.TextChoices):
+        PROCESSING = "processing", "Processing"
+        READY = "ready", "Ready"
+        FAILED = "failed", "Failed"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(
@@ -35,13 +41,16 @@ class MediaAsset(models.Model):
     )
     kind = models.CharField(max_length=20, choices=Kind.choices)
     visibility = models.CharField(max_length=20, choices=Visibility.choices)
-    file = models.FileField(upload_to=file_path, max_length=255)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.READY)
+    file = models.FileField(upload_to=file_path, max_length=255, blank=True)
     thumbnail = models.FileField(upload_to=thumbnail_path, max_length=255, blank=True)
     original_name = models.CharField(max_length=255)
     content_type = models.CharField(max_length=100)
     size = models.PositiveBigIntegerField()
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
+    duration = models.FloatField(null=True, blank=True)
+    error = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -57,6 +66,12 @@ class MediaAsset(models.Model):
             return True
         return bool(user and user.is_authenticated and (user.pk == self.owner_id or user.is_staff))
 
+    def token_lifetime(self, variant):
+        # Players keep requesting parts of a video while seeking, so its link lives longer
+        if self.kind == self.Kind.VIDEO and variant == "file":
+            return settings.MEDIA_SIGNED_VIDEO_URL_SECONDS
+        return settings.MEDIA_SIGNED_URL_SECONDS
+
     def signed_url(self, variant):
         token = TimestampSigner(salt=SIGNER_SALT).sign(f"{self.pk}:{variant}")
         path = reverse("media_serve", args=[self.pk, variant])
@@ -65,13 +80,15 @@ class MediaAsset(models.Model):
     def verify_token(self, token, variant):
         try:
             value = TimestampSigner(salt=SIGNER_SALT).unsign(
-                token, max_age=settings.MEDIA_SIGNED_URL_SECONDS
+                token, max_age=self.token_lifetime(variant)
             )
         except BadSignature:  # includes SignatureExpired
             return False
         return value == f"{self.pk}:{variant}"
 
     def url_for(self, variant):
+        if self.status != self.Status.READY:
+            return None
         field = self.thumbnail if variant == "thumbnail" else self.file
         if not field:
             return None
