@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "users",
+    "uploads",
     "api",
 ]
 
@@ -108,7 +109,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
-    "DEFAULT_THROTTLE_RATES": {"auth": "20/min"},
+    "DEFAULT_THROTTLE_RATES": {"auth": "20/min", "upload": "100/hour"},
     # Exactly one proxy (nginx) sits in front: use the client IP it records
     "NUM_PROXIES": 1,
 }
@@ -117,3 +118,12 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
+
+# Uploads
+MEDIA_URL = "/api/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+IMAGE_MAX_PIXELS = 40_000_000
+IMAGE_MAX_SIDE = 2560
+THUMBNAIL_SIDE = 400
+MEDIA_SIGNED_URL_SECONDS = config("MEDIA_SIGNED_URL_SECONDS", default=300, cast=int)

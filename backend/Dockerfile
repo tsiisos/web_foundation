@@ -25,7 +25,7 @@ CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 # ---------- production ----------
 FROM base AS prod
 RUN useradd --create-home --uid 1000 app \
-    && mkdir -p /app/staticfiles \
+    && mkdir -p /app/staticfiles /app/media \
     && chown -R app:app /app
 COPY --chown=app:app . .
 USER app
