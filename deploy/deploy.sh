@@ -25,8 +25,8 @@ main() {
   echo "==> Building and starting containers"
   $COMPOSE up -d --build --remove-orphans
 
-  echo "==> Reloading nginx config"
-  $COMPOSE exec -T nginx nginx -s reload
+  echo "==> Recreating nginx (picks up config changes)"
+  $COMPOSE up -d --force-recreate --no-deps nginx
 
   echo "==> Waiting for the app to become healthy"
   port=$(grep -E '^HTTP_PORT=' .env.prod | cut -d= -f2 || true)
