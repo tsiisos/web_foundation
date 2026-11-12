@@ -1,8 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Card, buttonClass, secondaryButtonClass } from "@/components/ui";
+import { useAuth } from "@/lib/auth";
+import { SITE_NAME } from "@/lib/config";
+
 export default function Home() {
+  const { user, loading } = useAuth();
   const [status, setStatus] = useState("checking...");
 
   useEffect(() => {
@@ -13,11 +19,29 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-3xl font-bold">This is my web_foundation!</h1>
+    <Card title={SITE_NAME}>
       <p>
         Backend status: <span className="font-mono">{status}</span>
       </p>
-    </main>
+      {loading ? null : user ? (
+        <div className="flex gap-3">
+          <Link href="/media" className={buttonClass}>
+            My media
+          </Link>
+          <Link href="/profile" className={secondaryButtonClass}>
+            Profile
+          </Link>
+        </div>
+      ) : (
+        <div className="flex gap-3">
+          <Link href="/login" className={buttonClass}>
+            Log in
+          </Link>
+          <Link href="/register" className={secondaryButtonClass}>
+            Create an account
+          </Link>
+        </div>
+      )}
+    </Card>
   );
 }

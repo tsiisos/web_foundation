@@ -91,3 +91,8 @@ redis-cli:
 
 prod-worker-logs:
 > $(COMPOSE_PROD) logs -f worker
+
+.PHONY: fe-typecheck
+
+fe-typecheck:
+> $(COMPOSE_DEV) exec frontend node_modules/.bin/tsc --noEmit

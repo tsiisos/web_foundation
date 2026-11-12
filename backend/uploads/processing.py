@@ -72,7 +72,7 @@ def process_image(upload):
         raise
     except Exception:
         logger.warning("Rejected unreadable image upload", exc_info=True)
-        raise UploadRejected("The file is not a valid image.")
+        raise UploadRejected("The file is not a valid image, MP4 video or PDF.")
 
     try:
         side = settings.IMAGE_MAX_SIDE
