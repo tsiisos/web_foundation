@@ -96,3 +96,9 @@ prod-worker-logs:
 
 fe-typecheck:
 > $(COMPOSE_DEV) exec frontend node_modules/.bin/tsc --noEmit
+
+.PHONY: prod-mail-links
+
+# Until a real mail provider exists: print the verification and reset links found in the worker log
+prod-mail-links:
+> $(COMPOSE_PROD) logs --no-log-prefix --tail=300 worker | sed -e ':a;N;$$!ba;s/=\n//g' -e 's/=3D/=/g' | grep -o 'http[s]*://[^ ]*/\(verify-email\|reset-password\)[^ ]*'
