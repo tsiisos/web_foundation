@@ -23,6 +23,7 @@ die() { echo "Error: $*" >&2; exit 1; }
 secret() { openssl rand -hex 32; }
 
 command -v openssl >/dev/null || die "openssl is required."
+for f in backend/.env.example frontend/.env.example .env.prod.example; do [ -f "$f" ] || die "$f is missing from the template."; done
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "run this inside the git repository."
 [[ "$SLUG" =~ $SLUG_RE ]] || die "slug: 2-31 characters, lowercase letters, digits and underscore, starting with a letter."
 [ "$SLUG" != "$OLD_SLUG" ] || die "choose a name different from the template's."
