@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 import { Alert, Card, Field, buttonClass, inputClass, linkClass } from "@/components/ui";
 import { errorText } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+
+function PasswordChangedNotice() {
+  const params = useSearchParams();
+  if (params.get("notice") !== "password-changed") return null;
+  return <Alert kind="success">Your password was changed. Please log in again.</Alert>;
+}
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
@@ -35,6 +41,9 @@ export default function LoginPage() {
 
   return (
     <Card title="Log in">
+      <Suspense fallback={null}>
+        <PasswordChangedNotice />
+      </Suspense>
       <form onSubmit={onSubmit} className="space-y-4">
         {error ? <Alert kind="error">{error}</Alert> : null}
         <Field label="Email">

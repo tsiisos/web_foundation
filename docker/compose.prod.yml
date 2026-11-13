@@ -54,7 +54,7 @@ services:
       target: prod
     restart: unless-stopped
     env_file: ../.env.prod
-    command: celery -A config worker -l info --concurrency=1
+    command: celery -A config worker -B -s /tmp/celerybeat-schedule -l info --concurrency=1
     volumes:
       - media_prod:/app/media
     depends_on:
@@ -72,6 +72,8 @@ services:
       context: ../frontend
       target: prod
     restart: unless-stopped
+    environment:
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
 
   nginx:
     image: nginx:1.27-alpine

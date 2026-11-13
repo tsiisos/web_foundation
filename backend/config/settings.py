@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "users",
     "uploads",
     "api",
@@ -153,3 +154,21 @@ CELERY_BROKER_URL = f"{REDIS_URL}/0"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Security. One switch for the day the site is served over HTTPS (HTTPS_ENABLED in .env.prod).
+# Redirecting HTTP to HTTPS is done by nginx, not by Django.
+HTTPS_ENABLED = config("HTTPS_ENABLED", default=False, cast=bool)
+if HTTPS_ENABLED:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Start low: browsers remember HSTS. Raise to a year once HTTPS has worked for a while.
+    SECURE_HSTS_SECONDS = 3600
+
+# Daily cleanup of expired refresh tokens (runs inside the worker, see "-B" in the compose files)
+CELERY_BEAT_SCHEDULE = {
+    "flush-expired-tokens": {
+        "task": "users.tasks.flush_expired_tokens",
+        "schedule": 86400.0,
+    },
+}

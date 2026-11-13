@@ -8,18 +8,21 @@ from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenBlacklistView, TokenObtainPairView
 
 from .emails import send_password_reset_email, send_verification_email
 from .serializers import (
+    AccountDeleteSerializer,
     EmailTokenObtainPairSerializer,
     MeSerializer,
+    PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
     RolesSerializer,
     UidTokenSerializer,
 )
+from .services import revoke_all_refresh_tokens
 from .tokens import email_verification_token
 
 User = get_user_model()
@@ -47,6 +50,12 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
+    throttle_scope = "auth"
+
+
+class LogoutView(TokenBlacklistView):
+    """Revokes one refresh token (called by the frontend's /session/logout)."""
+
     throttle_scope = "auth"
 
 
@@ -109,6 +118,7 @@ class PasswordResetConfirmView(APIView):
             return Response({"new_password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(data["new_password"])
         user.save(update_fields=["password"])
+        revoke_all_refresh_tokens(user)
         return Response({"detail": "Password updated."})
 
 
@@ -127,3 +137,47 @@ class RolesView(generics.UpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class PasswordChangeView(APIView):
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        user = request.user
+        if not user.check_password(data["current_password"]):
+            return Response(
+                {"current_password": ["The current password is not correct."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(data["new_password"], user)
+        except DjangoValidationError as exc:
+            return Response({"new_password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(data["new_password"])
+        user.save(update_fields=["password"])
+        revoke_all_refresh_tokens(user)
+        return Response({"detail": "Password updated. Please log in again."})
+
+
+class AccountDeleteView(APIView):
+    """Deletes the account and, through the cascade, every uploaded file."""
+
+    throttle_scope = "auth"
+
+    def post(self, request):
+        serializer = AccountDeleteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if user.is_staff:
+            return Response(
+                {"detail": "Staff accounts have to be removed in the admin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not user.check_password(serializer.validated_data["password"]):
+            return Response({"password": ["The password is not correct."]}, status=status.HTTP_400_BAD_REQUEST)
+        revoke_all_refresh_tokens(user)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
