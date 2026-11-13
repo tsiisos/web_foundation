@@ -3,7 +3,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-BASE=http://localhost:8080
+BASE=${BASE:-http://localhost:8080}
 BROWSER_BASE=${BROWSER_BASE:-http://192.168.1.64:8080}
 
 SAMPLE=$(ls backend/media/public/*.jpg 2>/dev/null | head -1)

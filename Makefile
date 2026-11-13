@@ -102,3 +102,11 @@ fe-typecheck:
 # Until a real mail provider exists: print the verification and reset links found in the worker log
 prod-mail-links:
 > $(COMPOSE_PROD) logs --no-log-prefix --tail=300 worker | sed -e ':a;N;$$!ba;s/=\n//g' -e 's/=3D/=/g' | grep -o 'http[s]*://[^ ]*/\(verify-email\|reset-password\)[^ ]*'
+
+.PHONY: init
+
+# One-time setup of a new project from this template:
+#   make init NAME=rentals TITLE="Rentals" DEV_IP=192.168.1.50 VPS_IP=203.0.113.10
+init:
+> @test -n "$(NAME)" || { echo 'Usage: make init NAME=rentals [TITLE="Rentals"] [DEV_IP=...] [VPS_IP=...]'; exit 1; }
+> ./scripts/init_project.sh "$(NAME)" "$(TITLE)" "$(DEV_IP)" "$(VPS_IP)"
