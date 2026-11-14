@@ -19,7 +19,9 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--save", "", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_prod:/data
     mem_limit: 192m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -94,3 +96,4 @@ volumes:
   pgdata_prod:
   static_prod:
   media_prod:
+  redis_prod:

@@ -172,3 +172,8 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 86400.0,
     },
 }
+
+CELERY_BEAT_SCHEDULE["requeue-stuck-videos"] = {
+    "task": "uploads.tasks.requeue_stuck_videos",
+    "schedule": 600.0,
+}

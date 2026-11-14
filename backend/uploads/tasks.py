@@ -1,10 +1,12 @@
 import logging
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from celery import shared_task
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.utils import timezone
 
 from .models import MediaAsset
 from .processing import UploadRejected, process_image
@@ -84,3 +86,19 @@ def process_video(asset_id):
             final_path.unlink(missing_ok=True)
             if asset.thumbnail:
                 asset.thumbnail.storage.delete(asset.thumbnail.name)
+
+
+@shared_task
+def requeue_stuck_videos():
+    """Safety net: re-queue videos still 'processing' long after upload (e.g. the queue was lost in a reboot).
+
+    A duplicate run is harmless: process_video does nothing for a video that is no longer 'processing'.
+    """
+    cutoff = timezone.now() - timedelta(minutes=15)
+    stuck = MediaAsset.objects.filter(
+        kind=MediaAsset.Kind.VIDEO,
+        status=MediaAsset.Status.PROCESSING,
+        created_at__lt=cutoff,
+    )
+    for asset in stuck:
+        enqueue_video(asset)
